@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: langgraph-job-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # One worker so every request shares the same SQLite checkpointer
+    # (the "ask for a missing field" pause is stored there). Threads handle
+    # concurrency; a long timeout covers the score -> rewrite -> score LLM calls.
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 300 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5

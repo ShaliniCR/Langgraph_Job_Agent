@@ -1,13 +1,31 @@
+import hmac
+import os
 import sqlite3
 import uuid
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from jd_intake_pipeline import build_graph
 
 app = Flask(__name__)
+
+# When APP_PASSWORD is set (e.g. on Render), every request needs HTTP basic auth
+# with that password (any username). Unset locally, so dev runs stay open.
+APP_PASSWORD = os.getenv("APP_PASSWORD")
+
+
+@app.before_request
+def require_password():
+    if not APP_PASSWORD:
+        return None
+    auth = request.authorization
+    if auth and auth.password and hmac.compare_digest(auth.password, APP_PASSWORD):
+        return None
+    return Response(
+        "Password required", 401, {"WWW-Authenticate": 'Basic realm="JD Intake"'}
+    )
 
 # check_same_thread=False: Flask's dev server can serve requests on a different
 # thread than the one that opened this connection.
